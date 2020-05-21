@@ -725,10 +725,8 @@ class _TypeAheadFieldState<T> extends State<TypeAheadField<T>>
   // Will have a value if the typeahead is inside a scrollable widget
   ScrollPosition _scrollPosition;
 
-  // Keyboard detection
-  KeyboardVisibilityNotification _keyboardVisibility =
-      new KeyboardVisibilityNotification();
-  int _keyboardVisibilityId;
+  // // Keyboard detection
+  StreamSubscription _keyboardVisibilitySubscription;
 
   @override
   void didChangeMetrics() {
@@ -741,7 +739,8 @@ class _TypeAheadFieldState<T> extends State<TypeAheadField<T>>
     this._suggestionsBox.close();
     this._suggestionsBox.widgetMounted = false;
     WidgetsBinding.instance.removeObserver(this);
-    _keyboardVisibility.removeListener(_keyboardVisibilityId);
+    _keyboardVisibilitySubscription.cancel();
+
     _effectiveFocusNode.removeListener(_focusNodeListener);
     _focusNode?.dispose();
     _resizeOnScrollTimer?.cancel();
@@ -762,9 +761,11 @@ class _TypeAheadFieldState<T> extends State<TypeAheadField<T>>
       this._focusNode = FocusNode();
     }
 
-    this._suggestionsBox = _SuggestionsBox(context, widget.direction, widget.autoFlipDirection);
+    this._suggestionsBox =
+        _SuggestionsBox(context, widget.direction, widget.autoFlipDirection);
     widget.suggestionsBoxController?._suggestionsBox = this._suggestionsBox;
-    widget.suggestionsBoxController?._effectiveFocusNode = this._effectiveFocusNode;
+    widget.suggestionsBoxController?._effectiveFocusNode =
+        this._effectiveFocusNode;
 
     this._focusNodeListener = () {
       if (_effectiveFocusNode.hasFocus) {
@@ -776,21 +777,20 @@ class _TypeAheadFieldState<T> extends State<TypeAheadField<T>>
 
     this._effectiveFocusNode.addListener(_focusNodeListener);
 
-    // hide suggestions box on keyboard closed
-    this._keyboardVisibilityId = _keyboardVisibility.addNewListener(
-      onChange: (bool visible) {
-        if (widget.hideSuggestionsOnKeyboardHide && !visible) {
-          _effectiveFocusNode.unfocus();
-        }
-      },
-    );
+    //hide suggestions when the keyboard is hiden
+    _keyboardVisibilitySubscription =
+        KeyboardVisibility.onChange.listen((bool visible) {
+      if (widget.hideSuggestionsOnKeyboardHide && !visible) {
+        _effectiveFocusNode.unfocus();
+      }
+    });
 
     WidgetsBinding.instance.addPostFrameCallback((duration) {
       if (mounted) {
         this._initOverlayEntry();
         // calculate initial suggestions list size
         this._suggestionsBox.resize();
-        
+
         // in case we already missed the focus event
         if (this._effectiveFocusNode.hasFocus) {
           this._suggestionsBox.open();
@@ -1374,7 +1374,7 @@ class TextFieldConfiguration<T> {
   ///
   /// Same as [TextField.maxLines](https://docs.flutter.io/flutter/material/TextField/maxLines.html)
   final int maxLines;
-  
+
   /// The minimum number of lines to occupy when the content spans fewer lines.
   ///
   /// Same as [TextField.minLines](https://docs.flutter.io/flutter/material/TextField/minLines.html)
