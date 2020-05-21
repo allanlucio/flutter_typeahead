@@ -537,10 +537,8 @@ class _CupertinoTypeAheadFieldState<T> extends State<CupertinoTypeAheadField<T>>
   // Will have a value if the typeahead is inside a scrollable widget
   ScrollPosition _scrollPosition;
 
-  // Keyboard detection
-  KeyboardVisibilityNotification _keyboardVisibility =
-      new KeyboardVisibilityNotification();
-  int _keyboardVisibilityId;
+  // // Keyboard detection
+  StreamSubscription _keyboardVisibilitySubscription;
 
   @override
   void didChangeMetrics() {
@@ -553,7 +551,7 @@ class _CupertinoTypeAheadFieldState<T> extends State<CupertinoTypeAheadField<T>>
     this._suggestionsBox.close();
     this._suggestionsBox.widgetMounted = false;
     WidgetsBinding.instance.removeObserver(this);
-    _keyboardVisibility.removeListener(_keyboardVisibilityId);
+    _keyboardVisibilitySubscription.cancel();
     _effectiveFocusNode.removeListener(_focusNodeListener);
     _focusNode?.dispose();
     _resizeOnScrollTimer?.cancel();
@@ -574,9 +572,11 @@ class _CupertinoTypeAheadFieldState<T> extends State<CupertinoTypeAheadField<T>>
       this._focusNode = FocusNode();
     }
 
-    this._suggestionsBox = _CupertinoSuggestionsBox(context, widget.direction, widget.autoFlipDirection);
+    this._suggestionsBox = _CupertinoSuggestionsBox(
+        context, widget.direction, widget.autoFlipDirection);
     widget.suggestionsBoxController?._suggestionsBox = this._suggestionsBox;
-    widget.suggestionsBoxController?._effectiveFocusNode = this._effectiveFocusNode;
+    widget.suggestionsBoxController?._effectiveFocusNode =
+        this._effectiveFocusNode;
 
     this._focusNodeListener = () {
       if (_effectiveFocusNode.hasFocus) {
@@ -588,14 +588,13 @@ class _CupertinoTypeAheadFieldState<T> extends State<CupertinoTypeAheadField<T>>
 
     this._effectiveFocusNode.addListener(_focusNodeListener);
 
-    // hide suggestions box on keyboard closed
-    this._keyboardVisibilityId = _keyboardVisibility.addNewListener(
-      onChange: (bool visible) {
-        if (widget.hideSuggestionsOnKeyboardHide && !visible) {
-          _effectiveFocusNode.unfocus();
-        }
-      },
-    );
+    //hide suggestions when the keyboard is hiden
+    _keyboardVisibilitySubscription =
+        KeyboardVisibility.onChange.listen((bool visible) {
+      if (widget.hideSuggestionsOnKeyboardHide && !visible) {
+        _effectiveFocusNode.unfocus();
+      }
+    });
 
     WidgetsBinding.instance.addPostFrameCallback((duration) {
       if (mounted) {
@@ -1117,14 +1116,13 @@ class CupertinoSuggestionsBoxDecoration {
   final double offsetX;
 
   /// Creates a [CupertinoSuggestionsBoxDecoration]
-  const CupertinoSuggestionsBoxDecoration({
-    this.hasScrollbar: true,
-    this.constraints,
-    this.color,
-    this.border,
-    this.borderRadius,
-    this.offsetX: 0.0
-  });
+  const CupertinoSuggestionsBoxDecoration(
+      {this.hasScrollbar: true,
+      this.constraints,
+      this.color,
+      this.border,
+      this.borderRadius,
+      this.offsetX: 0.0});
 }
 
 /// Supply an instance of this class to the [TypeAhead.textFieldConfiguration]
